@@ -40,7 +40,7 @@ def train():
     dev_data = np.load('./data/dev/data.npz')
     train_dataset = Dataset(train_data)#, train=True)
     dev_dataset = Dataset(dev_data)#, train=False)
-    class_sample_count = [15, 1]
+    class_sample_count = [1, 1]
     weight_per_class = 1 / torch.Tensor(class_sample_count).double()
     weights = [weight_per_class[label] for label in train_data['labels']]
     sampler = data.sampler.WeightedRandomSampler(weights, len(weights))
@@ -57,10 +57,10 @@ def train():
         {'params': net.sentence.conv_a.parameters()},
         #{'params': net.sentence.conv.parameters()},
         {'params': base_params}
-        ], lr=0.001)
+        ], lr=0.000003)
 
-    latest_epoch_num = 0
-    model_path = './model/epoch_' + str(latest_epoch_num) + '.params'
+    latest_epoch_num = 5
+    model_path = './model/epoch_' + str(latest_epoch_num) + '_2017-05-24#20:07:39.params'
     if os.path.exists(model_path):
         net.load_state_dict(torch.load(model_path))
         logger.info('Successfully loaded model: %s' % (model_path))
