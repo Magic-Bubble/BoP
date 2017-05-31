@@ -8,13 +8,15 @@ from torch.autograd import Variable
 from torch.utils import data
 
 class Dataset:
-    def __init__(self, datas):#, train=False):
+    def __init__(self, datas, test=False):#, train=False):
         #self.train = train
+        self.test = test
         self.qids = datas['qids']
         self.questions = datas['questions']
         self.answers = datas['answers']
         self.overlap_feats = datas['overlap_feats']
-        self.labels = datas['labels']
+        if not self.test:
+            self.labels = datas['labels']
         self.q_overlap_indices = datas['q_overlap_indices']
         self.a_overlap_indices = datas['a_overlap_indices']
         vocab_embeddings = datas['vocab_embeddings']
@@ -35,6 +37,12 @@ class Dataset:
         #           self.embedding(Variable(torch.from_numpy(self.answers[idx]).long())).data, \
         #           torch.from_numpy(self.overlap_feats[idx]), \
         #           torch.from_numpy(self.labels[idx])
+        if self.test:
+            return torch.from_numpy(np.array([self.qids[idx]]))[0], \
+               torch.cat((self.embedding(Variable(torch.from_numpy(self.questions[idx]).long())).data, torch.from_numpy(self.q_overlap_indices[idx]).unsqueeze(1).float()), 1),\
+               torch.cat((self.embedding(Variable(torch.from_numpy(self.answers[idx]).long())).data, torch.from_numpy(self.a_overlap_indices[idx]).unsqueeze(1).float()), 1), \
+               torch.from_numpy(self.overlap_feats[idx])
+
         return torch.from_numpy(np.array([self.qids[idx]]))[0], \
                torch.cat((self.embedding(Variable(torch.from_numpy(self.questions[idx]).long())).data, torch.from_numpy(self.q_overlap_indices[idx]).unsqueeze(1).float()), 1),\
                torch.cat((self.embedding(Variable(torch.from_numpy(self.answers[idx]).long())).data, torch.from_numpy(self.a_overlap_indices[idx]).unsqueeze(1).float()), 1), \

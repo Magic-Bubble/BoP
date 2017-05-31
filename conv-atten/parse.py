@@ -12,28 +12,38 @@ from collections import defaultdict
 import numpy as np
 import gensim
 
-def load_data(fname):
+def load_data(fname, test=False):
     lines = codecs.open(fname, 'r', 'utf-8-sig').readlines()
-    qids, questions, answers, labels = [], [], [], []
-    #num_skipped = 0
-    question_prev = ""
-    qid = 0
-    for line in lines:
-        parts = line.split('\t')
-        label, question, answer = int(parts[0]), parts[1], parts[2].strip('\n')
-        #if len(question.split()) > 20 or len(answer.split()) > 40:
-        #    num_skipped += 1
-        #    continue
-        if question != question_prev:
-            qid += 1
-        qids.append(qid)
-        questions.append(question.split())
-        answers.append(answer.split())
-        labels.append(label)
-        question_prev = question
-    #print("num_skipped: " + str(num_skipped))
-    return qids, questions, answers, labels
-
+    if not test:
+        qids, questions, answers, labels = [], [], [], []
+        question_prev = ""
+        qid = 0
+        for line in lines:
+            parts = line.split('\t')
+            label, question, answer = int(parts[0]), parts[1], parts[2].strip('\n')
+            if question != question_prev:
+                qid += 1
+            qids.append(qid)
+            questions.append(question.split())
+            answers.append(answer.split())
+            labels.append(label)
+            question_prev = question
+        return qids, questions, answers, labels
+    else:
+        qids, questions, answers = [], [], []
+        question_prev = ""
+        qid = 0
+        for line in lines:
+            parts = line.split('\t')
+            question, answer = parts[0], parts[1].strip('\n')
+            if question != question_prev:
+                qid += 1
+            qids.append(qid)
+            questions.append(question.split())
+            answers.append(answer.split())
+            question_prev = question
+        return qids, questions, answers
+        
 def add_to_vocab(data, vocab):
     for sentence in data:
         for word in sentence:
@@ -141,13 +151,24 @@ if __name__ == '__main__':
     logger.info("running %s" % ' '.join(sys.argv))
 
     # check and process input arguments
-    if len(sys.argv) != 5:
-        print("Using: python parse.py BoP2017-DBQA.train.seg.txt wiki.zh.txt.model stoplist.txt train")
+    if len(sys.argv) < 5:
+        print("Using: python parse.py BoP2017-DBQA.train.seg.txt wiki.zh.txt.model stoplist.txt train (test)")
         sys.exit(1)
-    inp, model_path, stoplist, outdir = sys.argv[1:5]
+    if len(sys.argv) == 5:
+        inp, model_path, stoplist, outdir = sys.argv[1:5]
+    elif len(sys.argv) == 6:
+        inp, model_path, stoplist, outdir, test = sys.argv[1:6]
+        if (test != 'test'):
+            print("Using: python parse.py BoP2017-DBQA.train.seg.txt wiki.zh.txt.model stoplist.txt train (test)")
+            sys.exit(1)
+        test = True
 
-    qids, questions, answers, labels = load_data(inp)
-    qids, labels = np.array(qids).astype('int32'), np.array(labels).astype('int32')
+    if not test:
+        qids, questions, answers, labels = load_data(inp)
+        qids, labels = np.array(qids).astype('int32'), np.array(labels).astype('int32')
+    else:
+        qids, questions, answers = load_data(inp, test=True)
+        qids = np.array(qids).astype('int32')
 
     q_max_sent_length = max(map(lambda x: len(x), questions))
     a_max_sent_length = max(map(lambda x: len(x), answers))
@@ -193,8 +214,9 @@ if __name__ == '__main__':
     logger.info("Finished Saved " + outdir + "/questions.npy")
     np.save(os.path.join(outdir, 'answers.npy'), answers_idx)
     logger.info("Finished Saved " + outdir + "/answers.npy")
-    np.save(os.path.join(outdir, 'labels.npy'), labels)
-    logger.info("Finished Saved " + outdir + "/labels.npy")
+    if not test:
+        np.save(os.path.join(outdir, 'labels.npy'), labels)
+        logger.info("Finished Saved " + outdir + "/labels.npy")
     np.save(os.path.join(outdir, 'overlap_feats.npy'), overlap_feats)
     logger.info("Finished Saved " + outdir + "/overlap_feats.npy")
     np.save(os.path.join(outdir, 'q_overlap_indices.npy'), q_overlap_indices)
@@ -204,8 +226,15 @@ if __name__ == '__main__':
     np.save(os.path.join(outdir, 'vocab_embeddings.npy'), vocab_embeddings)
     logger.info("Finished Saved " + outdir + "/vocab_embeddings.npy")
 
-    np.savez(os.path.join(outdir, 'data.npz'), \
-            qids=qids, questions=questions_idx, answers=answers_idx, labels=labels, \
-            overlap_feats=overlap_feats, q_overlap_indices=q_overlap_indices, a_overlap_indices=a_overlap_indices, \
-            vocab_embeddings=vocab_embeddings) 
+    if not test:
+        np.savez(os.path.join(outdir, 'data.npz'), \
+                qids=qids, questions=questions_idx, answers=answers_idx, labels=labels, \
+                overlap_feats=overlap_feats, q_overlap_indices=q_overlap_indices, a_overlap_indices=a_overlap_indices, \
+                vocab_embeddings=vocab_embeddings)
+    else:
+        np.savez(os.path.join(outdir, 'data.npz'), \
+                qids=qids, questions=questions_idx, answers=answers_idx, \
+                overlap_feats=overlap_feats, q_overlap_indices=q_overlap_indices, a_overlap_indices=a_overlap_indices, \
+                vocab_embeddings=vocab_embeddings)
+
     logger.info("Finished Saved All.")
